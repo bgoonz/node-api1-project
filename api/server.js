@@ -1,123 +1,125 @@
 // BUILD YOUR SERVER HERE
+// imports
+const express = require("express");
+const cors = require("cors");
+const db = require("./users/model");
 
-/*
-Method URL Description
-POST / api / users Creates a user using the information sent inside the request body.
-GET / api / users Returns an array users.
-GET / api / users /: id Returns the user object with the specified id.
-DELETE / api / users /: id Removes the user with the specified id and returns the deleted user.
-PUT / api / users /: id Updates the user with the specified id using data from the request body.Returns the modified user
-
-*/
-
-
-const express = require( "express" );
-const Data = require( "./users/model" );
+// express app
 const server = express();
-server.use( express.json() );
-server.get( "/api/users/:id", ( req, res ) => {
-  const userId = req.params.id;
-  Data.findById( userId )
-    .then( ( user ) => {
-      if ( !user ) {
-        res.status( 404 ).json( "User Does Not Exist" );
-      } else {
-        res.json( user );
-      }
-    } )
-    .catch( ( err ) => {
-      res.status( 500 ).json( {
-        message: err.message,
-      } );
-    } );
-} );
-server.get( "/api/users", ( req, res ) => {
-  Data.find()
-    .then( ( users ) => {
-      console.log( "Users data found and resolved GET CALL: ", users );
-      res.status( 200 ).json( users );
-    } )
-    .catch( ( err ) => {
-      res.status( 500 ).json( {
-        message: err.message,
-      } );
-    } );
-} );
-server.post( "/api/users", ( req, res ) => {
-  const newUser = req.body;
-  if ( !newUser.name || !newUser.bio ) {
-    res.status( 400 ).json( {
-      message: "Please provide name and bio for the user",
-    } );
-  } else {
-    Data.insert( newUser )
-      .then( ( user ) => {
-        console.log( user );
-        res.status( 201 ).json( user );
-      } )
-      .catch( ( err ) => {
-        res.status( 500 ).json( {
-          message: "There was an error while saving the user to the database",
-        } );
-        console.log( "Error posting new user from the server", err );
-      } );
-  }
-} );
-server.put( "/api/users/:id", async ( req, res ) => {
-  const {
-    id
-  } = req.body;
-  const changes = {
-    name: "tony",
-    bio: "artist",
-  };
-  try {
-    if ( !changes.name || !changes.bio ) {
-      res.status( 400 ).json( {
-        message: "Please provide name and bio for the user",
-      } );
-    } else {
-      const updatedUser = await Data.update( id, changes );
-      if ( !updatedUser ) {
-        res.status( 404 ).json( {
-          message: "The user with the specified ID does not exist",
-        } );
-      } else {
-        res.status( 200 ).json( updatedUser );
-      }
-    }
-    const updatedUser = await Data.update( id, changes );
-    res.status( 200 ).json( updatedUser );
-  } catch ( err ) {
-    res.status( 500 ).json( {
-      message: "The user information could not be modified",
-    } );
-  }
-} );
-server.delete( "/api/users/:id", async ( req, res ) => {
-  try {
-    const {
-      id
-    } = req.params;
-    const deletedUser = await Data.remove( id );
-    if ( !deletedUser ) {
-      res.status( 404 ).json( {
-        message: "The user with the specified ID does not exist",
-      } );
-    }
-  } catch ( err ) {
-    console.log( "Error deleting user from the server 500", err );
-    res.status( 500 ).json( {
-      message: "The user could not be removed",
-    } );
-  }
-} );
-server.use( "*", ( req, res ) => {
-  console.log( Data );
-  res.status( 404 ).json( {
-    message: "Uh oh! You've found the void!",
-  } );
-} );
-module.exports = server;
 
-module.exports = {}; // EXPORT YOUR SERVER instead of {}
+// global middleware
+server.use(express.json());
+server.use(cors());
+
+//endpoints
+// get helloWorld
+server.get("/", (req, res) => {
+  res.status(200).json({ message: "Yip, Yip, Appa!" });
+});
+
+//get all users
+server.get("/api/users", (req, res) => {
+  db.find()
+    .then((resp) => {
+      res.status(200).json(resp);
+    })
+    .catch((err) => {
+      console.log(err);
+      res
+        .status(500)
+        .json({ message: "The users information could not be retrieved" });
+    });
+});
+
+//get user by id
+server.get("/api/users/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.findById(id)
+    .then((resp) => {
+      if (resp === undefined) {
+        res.status(404).json({ message: "/does not exist/" });
+      } else {
+        res.status(200).json(resp);
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+      res
+        .status(500)
+        .json({ message: "The user with the specified ID does not exist" });
+    });
+});
+
+//post new user
+server.post("/api/users", (req, res) => {
+  const id = Date.now();
+  const item = req.body;
+
+  item.id = id;
+  if (!item.name || !item.bio) {
+    res.status(400).json({ message: "/provide name and bio/" });
+  } else {
+    db.insert(item)
+      .then(() => {
+        res.status(201).json(item);
+      })
+      .catch((err) => {
+        console.log(err);
+        res
+          .status(500)
+          .json({
+            message: "There was an error while saving the user to the database",
+          });
+      });
+  }
+});
+
+//put update user by id
+server.put("/api/users/:id", (req, res) => {
+  const { id } = req.params;
+  const changes = req.body;
+
+  if (!changes.name || !changes.bio) {
+    res
+      .status(400)
+      .json({ message: "Please provide name and bio for the user" });
+  } else {
+    db.update(id, changes)
+      .then((resp) => {
+        if (resp === undefined || resp === null) {
+          res.status(404).json({ message: "/does not exist/" });
+        } else {
+          res.status(201).json(resp);
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        res
+          .status(500)
+          .json({ message: "The user information could not be modified" });
+      });
+  }
+});
+
+//delete delete user by id
+server.delete("/api/users/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.remove(id)
+    .then((resp) => {
+      if (!resp) {
+        res
+          .status(404)
+          .json({ message: "The user with the specified ID does not exist" });
+      } else {
+        res.status(200).json(resp);
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).json({ message: "The user could not be removed" });
+    });
+});
+
+module.exports = server; // EXPORT YOUR SERVER instead of {}
